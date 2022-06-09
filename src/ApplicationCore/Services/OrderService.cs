@@ -1,16 +1,24 @@
 ﻿using System.Linq;
+using System.Net.Http;
+using System.Text;
 using System.Threading.Tasks;
 using Ardalis.GuardClauses;
+using Microsoft.Azure.ServiceBus;
 using Microsoft.eShopWeb.ApplicationCore.Entities;
 using Microsoft.eShopWeb.ApplicationCore.Entities.BasketAggregate;
 using Microsoft.eShopWeb.ApplicationCore.Entities.OrderAggregate;
 using Microsoft.eShopWeb.ApplicationCore.Interfaces;
 using Microsoft.eShopWeb.ApplicationCore.Specifications;
+using Newtonsoft.Json;
 
 namespace Microsoft.eShopWeb.ApplicationCore.Services;
 
 public class OrderService : IOrderService
 {
+    private const string PlaceOrderToCosmosDbUrl = "https://orderitemsreserverfunc.azurewebsites.net/api/PlaceOrderToCosmosDb";
+    private const string ServiceBusConnectionString = "Endpoint=sb://aaleastussb.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=VAb4oBV7OwKYo0IlMQYjZ5ynpUtl/FgvkZKrWK2GqdI=";
+    private const string QueueName = "orders";
+
     private readonly IRepository<Order> _orderRepository;
     private readonly IUriComposer _uriComposer;
     private readonly IRepository<Basket> _basketRepository;
@@ -49,5 +57,27 @@ public class OrderService : IOrderService
         var order = new Order(basket.BuyerId, shippingAddress, items);
 
         await _orderRepository.AddAsync(order);
+        
+        await this.SendOrder(order);
+        await this.PlaceOrderToCosmosDb(order);
+    }
+
+    private async Task PlaceOrderToCosmosDb(Order order)
+    {
+        var orderString = JsonConvert.SerializeObject(order);
+        var content = new StringContent(orderString, Encoding.UTF8, "application/json");
+
+        var httpClient = new HttpClient();
+        var response = await httpClient.PostAsync(PlaceOrderToCosmosDbUrl, content);
+    }
+
+    private async Task SendOrder(Order order)
+    {
+        var queueClient = new QueueClient(ServiceBusConnectionString, QueueName);
+
+        var orderString = JsonConvert.SerializeObject(order);
+        var message = new Message(Encoding.UTF8.GetBytes(orderString));
+
+        await queueClient.SendAsync(message);
     }
 }

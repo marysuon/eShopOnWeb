@@ -6,7 +6,6 @@ using BlazorShared.Models;
 using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.eShopWeb;
 using Microsoft.eShopWeb.ApplicationCore.Constants;
@@ -77,9 +76,12 @@ builder.Services.AddCors(options =>
     options.AddPolicy(name: CORS_POLICY,
                       builder =>
                       {
-                          builder.WithOrigins(baseUrlConfig.WebBase.Replace("host.docker.internal", "localhost").TrimEnd('/'));
-                          builder.AllowAnyMethod();
-                          builder.AllowAnyHeader();
+                          builder.WithOrigins(
+                              "https://localhost:44385/",
+                              "https://eshopeastus.azurewebsites.net/"
+                          )
+                          .AllowAnyMethod()
+                          .AllowAnyHeader();
                       });
 });
 
